@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dev Liquid Text</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@700;900&display=swap" rel="stylesheet">
 
 <style>
 *{
@@ -17,10 +17,10 @@ font-family:'Inter',sans-serif;
 
 body{
 height:100vh;
-background:radial-gradient(circle at top,#2a004f,#0b0015);
 display:flex;
-align-items:center;
 justify-content:center;
+align-items:center;
+background:radial-gradient(circle at top,#2a004f,#0b0015);
 overflow:hidden;
 }
 
@@ -30,12 +30,34 @@ max-width:900px;
 text-align:center;
 }
 
-canvas{
-width:100%;
+.canvasBox{
+position:relative;
 height:60vh;
-border-radius:25px;
+border-radius:30px;
 background:rgba(0,0,0,0.35);
 backdrop-filter:blur(20px);
+display:flex;
+justify-content:center;
+align-items:center;
+overflow:hidden;
+}
+
+h1{
+font-weight:900;
+font-size:clamp(50px,10vw,120px);
+background:linear-gradient(90deg,#c084fc,#a855f7,#7e22ce,#c084fc);
+background-size:300% 300%;
+-webkit-background-clip:text;
+-webkit-text-fill-color:transparent;
+animation:gradientMove 6s ease infinite;
+text-align:center;
+filter:drop-shadow(0 0 25px rgba(168,85,247,0.6));
+}
+
+@keyframes gradientMove{
+0%{background-position:0% 50%;}
+50%{background-position:100% 50%;}
+100%{background-position:0% 50%;}
 }
 
 .controls{
@@ -51,7 +73,7 @@ border-radius:50px;
 border:none;
 outline:none;
 font-size:16px;
-background:rgba(255,255,255,0.07);
+background:rgba(255,255,255,0.08);
 color:white;
 }
 
@@ -75,120 +97,25 @@ transform:scale(1.05);
 <body>
 
 <div class="wrapper">
-<canvas id="canvas"></canvas>
+
+<div class="canvasBox">
+<h1 id="mainText">Nguyễn Minh Khôi</h1>
+</div>
 
 <div class="controls">
 <input id="textInput" placeholder="Nhập text dev của bạn...">
-<button onclick="initText()">Generate</button>
+<button onclick="changeText()">Generate</button>
 </div>
+
 </div>
 
 <script>
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
-
-let particles = [];
-let mouse = {x:null,y:null,radius:100};
-
-function resize(){
-canvas.width = canvas.offsetWidth;
-canvas.height = canvas.offsetHeight;
-}
-resize();
-window.addEventListener("resize",()=>{
-resize();
-initText();
-});
-
-window.addEventListener("mousemove",e=>{
-mouse.x=e.x;
-mouse.y=e.y;
-});
-
-window.addEventListener("touchmove",e=>{
-mouse.x=e.touches[0].clientX;
-mouse.y=e.touches[0].clientY;
-});
-
-class Particle{
-constructor(x,y){
-this.baseX=x;
-this.baseY=y;
-this.x=Math.random()*canvas.width;
-this.y=Math.random()*canvas.height;
-this.size=1.5;
-this.density=Math.random()*30;
-}
-
-draw(){
-ctx.fillStyle="#d8b4fe";
-ctx.beginPath();
-ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
-ctx.fill();
-}
-
-update(){
-let dx=mouse.x-this.x;
-let dy=mouse.y-this.y;
-let distance=Math.sqrt(dx*dx+dy*dy);
-let force=(mouse.radius-distance)/mouse.radius;
-
-if(distance<mouse.radius){
-this.x-=dx/10;
-this.y-=dy/10;
-}else{
-this.x+=(this.baseX-this.x)/15;
-this.y+=(this.baseY-this.y)/15;
+function changeText(){
+let value=document.getElementById("textInput").value;
+if(value.trim()!==""){
+document.getElementById("mainText").innerText=value;
 }
 }
-}
-
-function initText(){
-particles=[];
-ctx.clearRect(0,0,canvas.width,canvas.height);
-
-let text=document.getElementById("textInput").value || "Nguyễn Minh Khôi";
-
-let fontSize=canvas.width/(text.length*0.6);
-if(fontSize>130)fontSize=130;
-if(fontSize<50)fontSize=50;
-
-ctx.fillStyle="white";
-ctx.textAlign="center";
-ctx.textBaseline="middle";
-ctx.font=`900 ${fontSize}px Inter`;
-ctx.fillText(text,canvas.width/2,canvas.height/2);
-
-let data=ctx.getImageData(0,0,canvas.width,canvas.height);
-
-for(let y=0;y<canvas.height;y+=4){
-for(let x=0;x<canvas.width;x+=4){
-let index=(y*canvas.width+x)*4;
-if(data.data[index+3]>128){
-particles.push(new Particle(x,y));
-}
-}
-}
-
-ctx.clearRect(0,0,canvas.width,canvas.height);
-}
-
-function animate(){
-ctx.clearRect(0,0,canvas.width,canvas.height);
-
-ctx.shadowColor="#a855f7";
-ctx.shadowBlur=20;
-
-particles.forEach(p=>{
-p.update();
-p.draw();
-});
-
-requestAnimationFrame(animate);
-}
-
-initText();
-animate();
 </script>
 
 </body>

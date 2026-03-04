@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Particle Text VIP</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+
+body{
+height:100vh;
+background:radial-gradient(circle at top,#3b0080,#14002b 65%);
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+color:white;
+overflow:hidden;
+}
+
+h1{
+margin-bottom:20px;
+font-weight:300;
+letter-spacing:3px;
+color:#d8b4fe;
+}
+
+.card{
+width:90%;
+max-width:800px;
+height:60vh;
+background:#0b001a;
+border-radius:30px;
+position:relative;
+overflow:hidden;
+box-shadow:
+0 0 120px rgba(168,85,247,0.4),
+inset 0 0 60px rgba(168,85,247,0.15);
+}
+
+canvas{
+position:absolute;
+width:100%;
+height:100%;
+}
+
+.bar{
+position:absolute;
+bottom:25px;
+left:50%;
+transform:translateX(-50%);
+width:85%;
+display:flex;
+gap:10px;
+background:rgba(20,10,40,0.7);
+border:1px solid rgba(168,85,247,0.4);
+border-radius:60px;
+padding:8px 8px 8px 25px;
+backdrop-filter:blur(25px);
+}
+
+.bar input{
+flex:1;
+background:none;
+border:none;
+outline:none;
+color:white;
+font-size:18px;
+letter-spacing:1px;
+}
+
+.bar button{
+border:none;
+background:linear-gradient(45deg,#a855f7,#ec4899);
+color:white;
+padding:10px 28px;
+border-radius:50px;
+cursor:pointer;
+font-weight:600;
+font-size:15px;
+box-shadow:0 0 20px rgba(168,85,247,0.6);
+}
+</style>
+</head>
+<body>
+
+<h1>Particle Text Effect</h1>
+
+<div class="card">
+<canvas id="canvas"></canvas>
+
+<div class="bar">
+<input type="text" id="textInput" placeholder="Nhập chữ cho đẹp hơn...">
+<button onclick="generate()">Generate</button>
+</div>
+</div>
+
+<script>
+const canvas=document.getElementById("canvas");
+const ctx=canvas.getContext("2d");
+const input=document.getElementById("textInput");
+
+function resize(){
+canvas.width=canvas.offsetWidth;
+canvas.height=canvas.offsetHeight;
+}
+resize();
+window.addEventListener("resize",resize);
+
+let particles=[];
+let hue=280;
+
+class Particle{
+constructor(x,y){
+this.x=Math.random()*canvas.width;
+this.y=Math.random()*canvas.height;
+this.tx=x;
+this.ty=y;
+this.size=1.6;
+}
+update(){
+this.x+=(this.tx-this.x)*0.08;
+this.y+=(this.ty-this.y)*0.08;
+}
+draw(){
+ctx.fillStyle=`hsl(${hue},100%,60%)`;
+ctx.shadowColor=`hsl(${hue},100%,60%)`;
+ctx.shadowBlur=12;
+ctx.beginPath();
+ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
+ctx.fill();
+}
+}
+
+function createBall(){
+particles=[];
+for(let i=0;i<2000;i++){
+let angle=Math.random()*Math.PI*2;
+let radius=150*Math.sqrt(Math.random());
+let x=canvas.width/2+radius*Math.cos(angle);
+let y=canvas.height/2+radius*Math.sin(angle);
+particles.push(new Particle(x,y));
+}
+}
+
+function generate(){
+let text=input.value.trim();
+particles=[];
+ctx.clearRect(0,0,canvas.width,canvas.height);
+
+if(text===""){
+createBall();
+return;
+}
+
+ctx.font=`900 ${canvas.width/5}px Arial Black, sans-serif`;
+ctx.textAlign="center";
+ctx.textBaseline="middle";
+ctx.fillStyle="white";
+ctx.fillText(text,canvas.width/2,canvas.height/2);
+
+let data=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+
+for(let y=0;y<canvas.height;y+=4){
+for(let x=0;x<canvas.width;x+=4){
+let index=(y*canvas.width+x)*4;
+if(data[index+3]>150){
+particles.push(new Particle(x,y));
+}
+}
+}
+}
+
+function animate(){
+ctx.clearRect(0,0,canvas.width,canvas.height);
+hue+=0.3;
+particles.forEach(p=>{
+p.update();
+p.draw();
+});
+requestAnimationFrame(animate);
+}
+animate();
+
+createBall();
+</script>
+
+</body>
+</html>

@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dev Sphere Optimized</title>
-
+<title>Dev Sphere</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{
@@ -12,25 +11,19 @@ width:100%;
 height:100%;
 overflow:hidden;
 background:#07040f;
-font-family:Arial,Helvetica,sans-serif;
 }
-
 canvas{
 position:fixed;
 inset:0;
-z-index:1;
 }
-
 #input-area{
 position:fixed;
 bottom:40px;
 left:50%;
 transform:translateX(-50%);
-z-index:10;
 display:flex;
 gap:10px;
 }
-
 #prompt{
 padding:12px 20px;
 border-radius:30px;
@@ -38,9 +31,7 @@ border:1px solid #7c3aed;
 background:#140a25;
 color:white;
 outline:none;
-width:220px;
 }
-
 #gen-btn{
 padding:12px 20px;
 border:none;
@@ -49,7 +40,6 @@ background:#7c3aed;
 color:white;
 cursor:pointer;
 }
-
 #reset-btn{
 position:fixed;
 top:20px;
@@ -60,10 +50,10 @@ border-radius:20px;
 background:#140a25;
 color:#c084fc;
 cursor:pointer;
+display:none;
 }
 </style>
 </head>
-
 <body>
 
 <canvas id="canvas"></canvas>
@@ -79,7 +69,8 @@ cursor:pointer;
 const canvas=document.getElementById("canvas");
 const ctx=canvas.getContext("2d");
 
-let W,H,DPR=Math.min(window.devicePixelRatio,1.5);
+let W,H;
+let DPR=Math.min(window.devicePixelRatio,1.5);
 
 function resize(){
 W=window.innerWidth;
@@ -93,111 +84,177 @@ ctx.setTransform(DPR,0,0,DPR,0,0);
 window.addEventListener("resize",resize);
 resize();
 
-/* ==== AUTO OPTIMIZE PARTICLES ==== */
-const isMobile=window.innerWidth<768;
-const NUM=isMobile?700:1100;
+/* ===== SETTINGS ===== */
+const NUM = window.innerWidth < 768 ? 800 : 1200;
+const particles=[];
+const spherePts=[];
 
 function makeSphere(n){
-const arr=[];
 for(let i=0;i<n;i++){
 const phi=Math.acos(1-2*(i+.5)/n);
 const th=Math.PI*(1+Math.sqrt(5))*i;
-arr.push([
+spherePts.push([
 Math.sin(phi)*Math.cos(th),
 Math.sin(phi)*Math.sin(th),
 Math.cos(phi)
 ]);
 }
-return arr;
 }
+makeSphere(NUM);
 
-const spherePts=makeSphere(NUM);
-const P=[];
 const Rbase=()=>Math.min(W,H)*0.23;
 
 for(let i=0;i<NUM;i++){
 const [hx,hy,hz]=spherePts[i];
-const R=Rbase();
-P.push({
+particles.push({
 hx,hy,hz,
-x:W/2+hx*R,
-y:H/2+hy*R,
+x:0,y:0,
+tx:0,ty:0,
+size:1+Math.random()*1.5,
 phase:Math.random()*Math.PI*2,
-spd:0.5+Math.random()*0.5,
-sz:0.8+Math.random()*1.2
+speed:0.4+Math.random()*0.6,
+progress:0,
+mode:"sphere"
 });
 }
 
-let ry=0,rx=.15;
-let mRY=0,mRX=0,cRY=0,cRX=0;
-let last=0;
+function resetSpherePositions(){
+const R=Rbase();
+for(const p of particles){
+p.x=W/2+p.hx*R;
+p.y=H/2+p.hy*R;
+p.mode="sphere";
+p.progress=0;
+}
+}
+resetSpherePositions();
 
-/* ==== Mouse ==== */
+/* ===== TEXT MODE ===== */
+function textToPoints(text){
+const off=document.createElement("canvas");
+const octx=off.getContext("2d");
+
+off.width=W;
+off.height=H;
+
+octx.fillStyle="white";
+octx.textAlign="center";
+octx.textBaseline="middle";
+octx.font="bold "+Math.min(W/8,120)+"px Arial";
+octx.fillText(text,W/2,H/2);
+
+const img=octx.getImageData(0,0,W,H).data;
+const pts=[];
+
+for(let y=0;y<H;y+=6){
+for(let x=0;x<W;x+=6){
+const i=(y*W+x)*4;
+if(img[i+3]>150){
+pts.push({x,y});
+}
+}
+}
+return pts;
+}
+
+document.getElementById("gen-btn").onclick=()=>{
+const text=document.getElementById("prompt").value.trim();
+if(!text) return;
+
+const pts=textToPoints(text);
+
+for(let i=0;i<particles.length;i++){
+const p=particles[i];
+if(pts[i]){
+p.tx=pts[i].x;
+p.ty=pts[i].y;
+p.mode="text";
+p.progress=0;
+}else{
+p.mode="hide";
+}
+}
+
+document.getElementById("reset-btn").style.display="block";
+};
+
+document.getElementById("reset-btn").onclick=()=>{
+resetSpherePositions();
+this.style.display="none";
+};
+
+/* ===== ROTATION ===== */
+let ry=0,rx=0.15;
+let mRY=0,mRX=0,cRY=0,cRX=0;
+let lastFrame=0;
+
 document.addEventListener("mousemove",e=>{
 mRY=(e.clientX/W-.5)*.4;
 mRX=(e.clientY/H-.5)*-.2;
 });
 
-/* ==== Projection ==== */
-function proj(nx,ny,nz){
+function project(nx,ny,nz){
 const cy=Math.cos(ry),sy=Math.sin(ry);
 let x=nx*cy+nz*sy;
 let z=-nx*sy+nz*cy;
 
 const cx=Math.cos(rx),sx=Math.sin(rx);
-const y2=ny*cx-z*sx;
-const z2=ny*sx+z*cx;
+let y2=ny*cx-z*sx;
+let z2=ny*sx+z*cx;
 
 const f=2/(2+z2);
 const R=Rbase();
-
 return{
-sx:W/2+x*R*f,
-sy:H/2+y2*R*f,
-sc:f
+x:W/2+x*R*f,
+y:H/2+y2*R*f,
+scale:f
 };
 }
 
-/* ==== Draw (60FPS limit) ==== */
+/* ===== DRAW ===== */
 function draw(ts){
-if(ts-last<16){
+
+if(ts-lastFrame<16){
 requestAnimationFrame(draw);
 return;
 }
-last=ts;
+lastFrame=ts;
 
 requestAnimationFrame(draw);
 ctx.clearRect(0,0,W,H);
 
 cRY+=(mRY-cRY)*.05;
 cRX+=(mRX-cRX)*.05;
-
 ry+=0.002+cRY*.02;
 rx=.15+cRX;
 
-for(const p of P){
-const wave=Math.sin(p.phase+ts*.001*p.spd)*.01;
-const pr=proj(p.hx*(1+wave),p.hy*(1+wave),p.hz);
+for(const p of particles){
 
-ctx.globalAlpha=0.6*pr.sc;
+let px,py;
+
+if(p.mode==="sphere"){
+const wave=Math.sin(p.phase+ts*.001*p.speed)*.01;
+const pr=project(p.hx*(1+wave),p.hy*(1+wave),p.hz);
+px=pr.x;
+py=pr.y;
+ctx.globalAlpha=0.7*pr.scale;
+}else if(p.mode==="text"){
+p.progress+=0.05;
+px=p.x+(p.tx-p.x)*p.progress;
+py=p.y+(p.ty-p.y)*p.progress;
+ctx.globalAlpha=0.9;
+}else{
+continue;
+}
+
 ctx.fillStyle="#a855f7";
 ctx.beginPath();
-ctx.arc(pr.sx,pr.sy,p.sz,0,Math.PI*2);
+ctx.arc(px,py,p.size,0,Math.PI*2);
 ctx.fill();
 }
 }
 
 requestAnimationFrame(draw);
-
-/* ==== Reset ==== */
-document.getElementById("reset-btn").onclick=()=>{
-const R=Rbase();
-for(const p of P){
-p.x=W/2+p.hx*R;
-p.y=H/2+p.hy*R;
-}
-};
 </script>
-
 </body>
 </html>

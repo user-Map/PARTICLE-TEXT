@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Particle Text Effect</title>
+
+<style>
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+}
+
+body{
+height:100vh;
+background:radial-gradient(circle at top,#2d0066,#14002b 60%);
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+color:white;
+overflow:hidden;
+}
+
+h1{
+margin-bottom:20px;
+font-weight:300;
+letter-spacing:2px;
+color:#c084ff;
+}
+
+.card{
+width:90%;
+max-width:700px;
+height:55vh;
+background:#0e001f;
+border-radius:20px;
+position:relative;
+overflow:hidden;
+box-shadow:0 0 80px rgba(168,85,247,0.3);
+display:flex;
+align-items:center;
+justify-content:center;
+}
+
+canvas{
+position:absolute;
+width:100%;
+height:100%;
+}
+
+.bar{
+position:absolute;
+bottom:20px;
+width:85%;
+display:flex;
+gap:10px;
+background:rgba(10,6,20,0.75);
+border:1px solid rgba(168,85,247,0.3);
+border-radius:60px;
+padding:6px 6px 6px 20px;
+backdrop-filter:blur(20px);
+-webkit-backdrop-filter:blur(20px);
+}
+
+.bar input{
+flex:1;
+background:none;
+border:none;
+outline:none;
+color:white;
+font-size:16px;
+}
+
+.bar button{
+border:none;
+background:linear-gradient(45deg,#a855f7,#d946ef);
+color:white;
+padding:8px 20px;
+border-radius:50px;
+cursor:pointer;
+font-weight:600;
+}
+
+.bar button:active{
+transform:scale(0.95);
+}
+</style>
+</head>
+<body>
+
+<h1>Particle Text Effect</h1>
+
+<div class="card">
+<canvas id="canvas"></canvas>
+
+<div class="bar">
+<input type="text" id="textInput" placeholder="Nhập chữ của bạn...">
+<button onclick="generate()">Generate</button>
+</div>
+</div>
+
+<script>
+const canvas=document.getElementById("canvas");
+const ctx=canvas.getContext("2d");
+const input=document.getElementById("textInput");
+
+function resize(){
+canvas.width=canvas.offsetWidth;
+canvas.height=canvas.offsetHeight;
+}
+resize();
+window.addEventListener("resize",resize);
+
+let particles=[];
+let mode="ball";
+
+class Particle{
+constructor(x,y){
+this.x=Math.random()*canvas.width;
+this.y=Math.random()*canvas.height;
+this.tx=x;
+this.ty=y;
+this.size=2;
+}
+update(){
+this.x+=(this.tx-this.x)*0.07;
+this.y+=(this.ty-this.y)*0.07;
+}
+draw(){
+ctx.fillStyle="#d946ef";
+ctx.beginPath();
+ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
+ctx.fill();
+}
+}
+
+function createBall(){
+particles=[];
+for(let i=0;i<1200;i++){
+let angle=Math.random()*Math.PI*2;
+let radius=120*Math.sqrt(Math.random());
+let x=canvas.width/2+radius*Math.cos(angle);
+let y=canvas.height/2+radius*Math.sin(angle);
+particles.push(new Particle(x,y));
+}
+}
+
+function generate(){
+let text=input.value.trim();
+if(text===""){
+mode="ball";
+createBall();
+return;
+}
+
+mode="text";
+particles=[];
+ctx.clearRect(0,0,canvas.width,canvas.height);
+
+ctx.font=`bold ${canvas.width/6}px sans-serif`;
+ctx.textAlign="center";
+ctx.textBaseline="middle";
+ctx.fillText(text,canvas.width/2,canvas.height/2);
+
+let data=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+
+for(let y=0;y<canvas.height;y+=6){
+for(let x=0;x<canvas.width;x+=6){
+let index=(y*canvas.width+x)*4;
+if(data[index+3]>128){
+particles.push(new Particle(x,y));
+}
+}
+}
+}
+
+function animate(){
+ctx.clearRect(0,0,canvas.width,canvas.height);
+particles.forEach(p=>{
+p.update();
+p.draw();
+});
+requestAnimationFrame(animate);
+}
+animate();
+
+createBall();
+</script>
+
+</body>
+</html>

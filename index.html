@@ -1,297 +1,135 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>User Map</title>
+
+<title>UserMap</title>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{
-width:100%;
-height:100%;
-overflow:hidden;
-background:#07040f;
-font-family:Arial,Helvetica,sans-serif;
+
+body{
+    margin:0;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background: radial-gradient(circle at top,#0f172a,#020617);
+    font-family: monospace;
 }
 
-canvas{
-position:fixed;
-inset:0;
-z-index:1;
+/* terminal box */
+
+.terminal{
+    width:340px;
+    max-width:90%;
+    background:#0f172a;
+    border-radius:14px;
+    box-shadow:
+        0 0 30px rgba(0,0,0,0.7),
+        0 0 80px rgba(59,130,246,0.2);
+    overflow:hidden;
 }
 
-#input-area{
-position:fixed;
-bottom:40px;
-left:50%;
-transform:translateX(-50%);
-z-index:10;
-display:flex;
-gap:12px;
+/* header */
+
+.header{
+    background:#1e293b;
+    padding:10px;
+    display:flex;
+    align-items:center;
 }
 
-#prompt{
-padding:14px 22px;
-border-radius:40px;
-border:1px solid #7c3aed;
-background:#140a25;
-color:white;
-outline:none;
-width:240px;
+.circle{
+    width:12px;
+    height:12px;
+    border-radius:50%;
+    margin-right:6px;
 }
 
-#gen-btn{
-padding:14px 24px;
-border:none;
-border-radius:40px;
-background:linear-gradient(135deg,#7c3aed,#a855f7);
-color:white;
-cursor:pointer;
+.red{background:#ff5f56;}
+.yellow{background:#ffbd2e;}
+.green{background:#27c93f;}
+
+.title{
+    margin-left:auto;
+    font-size:12px;
+    color:#94a3b8;
 }
 
-#reset-btn{
-position:fixed;
-top:25px;
-right:25px;
-padding:10px 18px;
-border:none;
-border-radius:30px;
-background:#140a25;
-color:#c084fc;
-cursor:pointer;
-display:none;
+/* content */
+
+.code{
+    padding:18px;
+    color:#60a5fa;
+    line-height:1.6;
+    font-size:14px;
 }
+
+/* link buttons */
+
+.links{
+    padding:14px;
+    border-top:1px solid #1e293b;
+    display:flex;
+    justify-content:space-around;
+}
+
+.links a{
+    text-decoration:none;
+    color:#38bdf8;
+    font-size:13px;
+    transition:0.2s;
+}
+
+.links a:hover{
+    color:#fff;
+    text-shadow:0 0 10px #38bdf8;
+}
+
 </style>
 </head>
 
 <body>
 
-<canvas id="canvas"></canvas>
+<div class="terminal">
 
-<div id="input-area">
-<input type="text" id="prompt" placeholder="Write anything...">
-<button id="gen-btn">Generate</button>
+<div class="header">
+<div class="circle red"></div>
+<div class="circle yellow"></div>
+<div class="circle green"></div>
+<div class="title">terminal</div>
 </div>
 
-<button id="reset-btn">Reset</button>
+<div class="code">
 
-<script>
-const canvas=document.getElementById("canvas");
-const ctx=canvas.getContext("2d");
+1 function aboutMe() { <br><br>
 
-let W,H;
-let DPR=Math.min(window.devicePixelRatio,1.5);
+2 const name = "Nguyễn Minh Khôi"; <br>
+3 const nickname = "Map"; <br>
+4 const location = "Long An"; <br>
+5 const hobby = "Code • Ngủ"; <br><br>
 
-function resize(){
-W=window.innerWidth;
-H=window.innerHeight;
-canvas.width=W*DPR;
-canvas.height=H*DPR;
-canvas.style.width=W+"px";
-canvas.style.height=H+"px";
-ctx.setTransform(DPR,0,0,DPR,0,0);
-}
-window.addEventListener("resize",resize);
-resize();
-
-/* ===== PARTICLES ===== */
-
-const NUM = window.innerWidth < 768 ? 850 : 1200;
-const particles=[];
-const spherePts=[];
-
-function makeSphere(n){
-for(let i=0;i<n;i++){
-const phi=Math.acos(1-2*(i+.5)/n);
-const th=Math.PI*(1+Math.sqrt(5))*i;
-spherePts.push([
-Math.sin(phi)*Math.cos(th),
-Math.sin(phi)*Math.sin(th),
-Math.cos(phi)
-]);
-}
-}
-makeSphere(NUM);
-
-function baseRadius(){
-return Math.min(W,H)*0.23;
-}
-
-for(let i=0;i<NUM;i++){
-const [hx,hy,hz]=spherePts[i];
-particles.push({
-hx,hy,hz,
-x:0,y:0,
-tx:0,ty:0,
-size:1+Math.random()*1.4,
-phase:Math.random()*Math.PI*2,
-speed:0.4+Math.random()*0.6,
-progress:0,
-mode:"sphere"
-});
-}
-
-function resetSphere(){
-const R=baseRadius();
-for(const p of particles){
-p.x=W/2+p.hx*R;
-p.y=H/2+p.hy*R;
-p.mode="sphere";
-p.progress=0;
-}
-}
-resetSphere();
-
-/* ===== TEXT SAMPLING ===== */
-
-function textToPoints(text){
-const off=document.createElement("canvas");
-const octx=off.getContext("2d");
-
-off.width=W;
-off.height=H;
-
-octx.fillStyle="white";
-octx.textAlign="center";
-octx.textBaseline="middle";
-octx.font="bold "+Math.min(W/7,130)+"px Arial";
-octx.fillText(text,W/2,H/2);
-
-const img=octx.getImageData(0,0,W,H).data;
-const pts=[];
-
-for(let y=0;y<H;y+=6){
-for(let x=0;x<W;x+=6){
-const i=(y*W+x)*4;
-if(img[i+3]>150){
-pts.push({x,y});
-}
-}
-}
-return pts;
-}
-
-/* ===== BUTTONS ===== */
-
-document.getElementById("gen-btn").onclick=()=>{
-const text=document.getElementById("prompt").value.trim();
-if(!text) return;
-
-const pts=textToPoints(text);
-
-for(let i=0;i<particles.length;i++){
-const p=particles[i];
-if(pts[i]){
-p.tx=pts[i].x;
-p.ty=pts[i].y;
-p.mode="text";
-p.progress=0;
-}else{
-p.mode="hide";
-}
-}
-
-document.getElementById("reset-btn").style.display="block";
-};
-
-document.getElementById("reset-btn").onclick=()=>{
-resetSphere();
-this.style.display="none";
-};
-
-/* ===== ROTATION ===== */
-
-let ry=0,rx=0.15;
-let mRY=0,mRX=0,cRY=0,cRX=0;
-let lastFrame=0;
-
-document.addEventListener("mousemove",e=>{
-mRY=(e.clientX/W-.5)*.4;
-mRX=(e.clientY/H-.5)*-.2;
-});
-
-function project(nx,ny,nz){
-const cy=Math.cos(ry),sy=Math.sin(ry);
-let x=nx*cy+nz*sy;
-let z=-nx*sy+nz*cy;
-
-const cx=Math.cos(rx),sx=Math.sin(rx);
-let y2=ny*cx-z*sx;
-let z2=ny*sx+z*cx;
-
-const f=2/(2+z2);
-const R=baseRadius();
-
-return{
-x:W/2+x*R*f,
-y:H/2+y2*R*f,
-scale:f
-};
-}
-
-/* ===== DRAW LOOP (OPTIMIZED) ===== */
-
-function draw(ts){
-
-if(ts-lastFrame<16){
-requestAnimationFrame(draw);
-return;
-}
-lastFrame=ts;
-
-requestAnimationFrame(draw);
-ctx.clearRect(0,0,W,H);
-
-cRY+=(mRY-cRY)*.05;
-cRX+=(mRX-cRX)*.05;
-ry+=0.002+cRY*.02;
-rx=.15+cRX;
-
-for(const p of particles){
-
-let px,py;
-
-if(p.mode==="sphere"){
-
-const wave=Math.sin(p.phase+ts*.001*p.speed)*.01;
-const pr=project(p.hx*(1+wave),p.hy*(1+wave),p.hz);
-
-px=pr.x;
-py=pr.y;
-
-p.x=px;
-p.y=py;
-
-ctx.globalAlpha=0.7*pr.scale;
-
-}else if(p.mode==="text"){
-
-p.progress+=0.06;
-if(p.progress>1) p.progress=1;
-
-px=p.x+(p.tx-p.x)*p.progress;
-py=p.y+(p.ty-p.y)*p.progress;
-
-p.x=px;
-p.y=py;
-
-ctx.globalAlpha=0.95;
-
-}else{
-continue;
-}
-
-ctx.fillStyle="#a855f7";
-ctx.beginPath();
-ctx.arc(px,py,p.size,0,Math.PI*2);
-ctx.fill();
-}
+6 console.log("Xin chào 👋"); <br>
+7 console.log("Tôi là: " + name); <br>
+8 console.log("Nickname: " + nickname); <br>
+9 console.log("Nơi sống: " + location); <br><br>
 
 }
 
-requestAnimationFrame(draw);
-</script>
+</div>
+
+<div class="links">
+
+<a href="https://discord.gg/YvzZF4wx" target="_blank">Discord</a>
+
+<a href="https://www.facebook.com/share/1788aVgsrh/?mibextid=wwXIfr" target="_blank">Facebook</a>
+
+<a href="https://github.com/user-Map" target="_blank">GitHub</a>
+
+</div>
+
+</div>
 
 </body>
 </html>
